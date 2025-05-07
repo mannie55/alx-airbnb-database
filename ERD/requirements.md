@@ -32,4 +32,4 @@
 
 ## ER Diagram
 
-<img src="ERD/er_diagram.svg" alt="ER Diagram" width="100%">
+<img src="./er_diagram.svg" alt="ER Diagram" width="100%">
