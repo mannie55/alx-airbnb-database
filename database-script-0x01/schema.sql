@@ -20,7 +20,7 @@ CREATE TABLE properties (
     property_id char(36) PRIMARY KEY,
     host_id char(36) NOT NULL,
     name VARCHAR(100) NOT NULL,
-    description TEXT NOT NULL,
+    description TEXT NOT NULL,  
     location VARCHAR(255) NOT NULL,
     price_per_night DECIMAL(10, 2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
