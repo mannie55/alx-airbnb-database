@@ -1,4 +1,4 @@
--- Query to retrieve comprehensive booking details
+-- Query to retrieve comprehensive booking details with AND conditions
 SELECT 
     b.booking_id,
     -- User details
@@ -21,66 +21,12 @@ FROM bookings b
 INNER JOIN users u ON b.user_id = u.user_id
 INNER JOIN properties p ON b.property_id = p.property_id
 LEFT JOIN payments py ON b.booking_id = py.booking_id
+WHERE b.start_date >= CURRENT_DATE - INTERVAL '30 days'
+    AND b.total_price > 100
+    AND p.price_per_night < 200
+    AND py.payment_status = 'completed'
 ORDER BY b.start_date DESC;
 
--- Optimized Query 1: Using EXISTS and Partial Indexes
--- First, create partial indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_bookings_recent ON bookings(start_date) 
-WHERE start_date >= CURRENT_DATE - INTERVAL '30 days';
-
-CREATE INDEX IF NOT EXISTS idx_bookings_user_property ON bookings(user_id, property_id);
-
--- Then use the optimized query
-EXPLAIN ANALYZE
-SELECT 
-    b.booking_id,
-    u.first_name as user_first_name,
-    u.last_name as user_last_name,
-    u.email as user_email,
-    p.name as property_name,
-    p.description as property_description,
-    p.price_per_night,
-    b.start_date,
-    b.end_date,
-    b.total_price,
-    py.payment_date,
-    py.payment_method,
-    py.amount as payment_amount
-FROM bookings b
-INNER JOIN users u ON b.user_id = u.user_id
-INNER JOIN properties p ON b.property_id = p.property_id
-LEFT JOIN LATERAL (
-    SELECT payment_date, payment_method, amount
-    FROM payments
-    WHERE booking_id = b.booking_id
-    ORDER BY payment_date DESC
-    LIMIT 1
-) py ON true
-WHERE b.start_date >= CURRENT_DATE - INTERVAL '30 days'
-ORDER BY b.start_date DESC
-LIMIT 100;
-
--- Optimized Query 2: Using Materialized View for Frequently Accessed Data
--- First, create a materialized view for recent bookings
-CREATE MATERIALIZED VIEW IF NOT EXISTS recent_bookings_view AS
-SELECT 
-    b.booking_id,
-    b.user_id,
-    b.property_id,
-    b.start_date,
-    b.end_date,
-    b.total_price,
-    u.first_name,
-    u.last_name,
-    u.email,
-    p.name as property_name,
-    p.description as property_description,
-    p.price_per_night
-FROM bookings b
-INNER JOIN users u ON b.user_id = u.user_id
-INNER JOIN properties p ON b.property_id = p.property_id
-WHERE b.start_date >= CURRENT_DATE - INTERVAL '30 days'
-WITH DATA;
 
 -- Create index on the materialized view
 CREATE INDEX IF NOT EXISTS idx_recent_bookings_date 
@@ -110,55 +56,10 @@ LEFT JOIN LATERAL (
     ORDER BY payment_date DESC
     LIMIT 1
 ) py ON true
+WHERE rb.total_price > 100
+    AND rb.price_per_night < 200
+    AND py.payment_status = 'completed'
 ORDER BY rb.start_date DESC
-LIMIT 100;
-
--- Optimized Query 3: Using Partitioning for Large Tables
--- First, create a partitioned table for bookings
-CREATE TABLE IF NOT EXISTS bookings_partitioned (
-    booking_id INT,
-    user_id INT,
-    property_id INT,
-    start_date DATE,
-    end_date DATE,
-    total_price DECIMAL(10,2)
-) PARTITION BY RANGE (start_date);
-
--- Create partitions for different date ranges
-CREATE TABLE bookings_current PARTITION OF bookings_partitioned
-    FOR VALUES FROM (CURRENT_DATE - INTERVAL '30 days') TO (CURRENT_DATE + INTERVAL '30 days');
-
-CREATE TABLE bookings_historical PARTITION OF bookings_partitioned
-    FOR VALUES FROM (MINVALUE) TO (CURRENT_DATE - INTERVAL '30 days');
-
--- Then use the partitioned table
-EXPLAIN ANALYZE
-SELECT 
-    b.booking_id,
-    u.first_name as user_first_name,
-    u.last_name as user_last_name,
-    u.email as user_email,
-    p.name as property_name,
-    p.description as property_description,
-    p.price_per_night,
-    b.start_date,
-    b.end_date,
-    b.total_price,
-    py.payment_date,
-    py.payment_method,
-    py.amount as payment_amount
-FROM bookings_partitioned b
-INNER JOIN users u ON b.user_id = u.user_id
-INNER JOIN properties p ON b.property_id = p.property_id
-LEFT JOIN LATERAL (
-    SELECT payment_date, payment_method, amount
-    FROM payments
-    WHERE booking_id = b.booking_id
-    ORDER BY payment_date DESC
-    LIMIT 1
-) py ON true
-WHERE b.start_date >= CURRENT_DATE - INTERVAL '30 days'
-ORDER BY b.start_date DESC
 LIMIT 100;
 
 /*
