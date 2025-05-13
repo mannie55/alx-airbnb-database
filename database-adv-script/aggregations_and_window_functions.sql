@@ -8,12 +8,13 @@ GROUP BY users.first_name;
 
 select * from properties;
 
--- Rank properties by number of bookings
+-- Compare ROW_NUMBER and RANK for property bookings
 SELECT 
     p.property_id,
     p.name as property_name,
     COUNT(b.booking_id) as total_bookings,
-    RANK() OVER (ORDER BY COUNT(b.booking_id) DESC) as booking_rank
+    ROW_NUMBER() OVER (ORDER BY COUNT(b.booking_id) DESC) as row_num,
+    RANK() OVER (ORDER BY COUNT(b.booking_id) DESC) as rank_num
 FROM properties p
 LEFT JOIN bookings b ON p.property_id = b.property_id
 GROUP BY p.property_id, p.name
