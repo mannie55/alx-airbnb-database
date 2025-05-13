@@ -6,4 +6,5 @@ WHERE  (SELECT AVG(rating) FROM reviews) > 4.0;
 SELECT users.first_name, users.last_name, COUNT(bookings.user_id) AS booking_count
 FROM users
 INNER JOIN bookings ON users.user_id = bookings.user_id
+WHERE (SELECT COUNT(bookings.user_id) FROM bookings) > 3
 GROUP BY users.user_id;
